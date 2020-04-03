@@ -67,8 +67,8 @@ namespace TeamCityMonitoring.Monitoring
             Console.WriteLine($"Number of builds {result.Count} at {now}");
             foreach (var build in result.Build)
             {
-                csvWriter.WriteRecord(new QueuedBuildStatus { NumberOfBuilds = result.Count ?? 0, Timestamp = now, Id = build.Id?.ToString(), Branch = build.BranchName, Type = build.BuildTypeId });
                 csvWriter.NextRecord();
+                csvWriter.WriteRecord(new QueuedBuildStatus { NumberOfBuilds = result.Count ?? 0, Timestamp = now, Id = build.Id?.ToString(), Branch = build.BranchName, Type = build.BuildTypeId });
             }
             await csvWriter.FlushAsync();
             await writer.FlushAsync();
