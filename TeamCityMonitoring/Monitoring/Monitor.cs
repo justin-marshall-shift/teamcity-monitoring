@@ -61,8 +61,9 @@ namespace TeamCityMonitoring.Monitoring
             }
         }
 
-        private async Task WriteRecordsAsync(Builds result, IWriter csvWriter, TextWriter writer, DateTime now)
+        private static async Task WriteRecordsAsync(Builds result, IWriter csvWriter, TextWriter writer, DateTime now)
         {
+            await Task.Yield();
             Console.WriteLine($"Number of builds {result.Count} at {now}");
             foreach (var build in result.Build)
             {
