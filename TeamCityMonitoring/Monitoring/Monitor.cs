@@ -16,18 +16,29 @@ namespace TeamCityMonitoring.Monitoring
 {
     public class Monitor
     {
-        public async Task RunAsync(string url, string token, string path, int period, CancellationToken cancellationToken)
+        private readonly string _url;
+        private readonly string _token;
+        private readonly string _csv;
+
+        public Monitor(string url, string token, string csv)
+        {
+            _url = url;
+            _token = token;
+            _csv = csv;
+        }
+
+        public async Task RunAsync(int period, CancellationToken cancellationToken)
         {
             var httpClient = new HttpClient();
             httpClient.DefaultRequestHeaders.Authorization =
-                new AuthenticationHeaderValue("Bearer", token);
-            httpClient.BaseAddress = new Uri(url);
-            var client = new Client(httpClient) { BaseUrl = url };
+                new AuthenticationHeaderValue("Bearer", _token);
+            httpClient.BaseAddress = new Uri(_url);
+            var client = new Client(httpClient) { BaseUrl = _url };
 
-            await LoopAsync(client, period, path, cancellationToken);
+            await LoopAsync(client, period, _csv, cancellationToken);
         }
 
-        private async Task LoopAsync(Client client, int period, string csvPath, CancellationToken cancellationToken)
+        private static async Task LoopAsync(Client client, int period, string csvPath, CancellationToken cancellationToken)
         {
             Console.WriteLine("Beginning of monitoring");
             var configuration = new CsvConfiguration(CultureInfo.InvariantCulture)
@@ -51,7 +62,8 @@ namespace TeamCityMonitoring.Monitoring
                         var now = DateTime.UtcNow;
                         var result = await client.GetBuildsAsync(null, null, cancellationToken);
 
-                        await Task.WhenAll(WriteRecordsAsync(result, csvWriter, writer, now), Task.Delay(delay, cancellationToken));
+                        await Task.WhenAll(WriteRecordsAsync(result, csvWriter, writer, now),
+                            Task.Delay(delay, cancellationToken));
                     }
                 }
             }
