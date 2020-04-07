@@ -49,8 +49,8 @@ namespace TeamCityMonitoring.Exporting
 
                     CreateBuildNumberSheet(workbook, entries);
                     CreateBuildDetailsSheet(workbook, entries);
-                    //CreateBranchDetailsSheet(workbook, entries);
-                    //CreateBuildTypeDetailsSheet(workbook, entries);
+                    CreateBranchDetailsSheet(workbook, entries);
+                    CreateBuildTypeDetailsSheet(workbook, entries);
 
                     workbook.Write(excelStream);
                 }
@@ -111,11 +111,21 @@ namespace TeamCityMonitoring.Exporting
             }).Select(g => new
             {
                 g.Id,
-                Beginning = g.Elements.Min(e => e.Timestamp),
-                Ending = g.Elements.Max(e => e.Timestamp),
+                Duration = g.Elements.Max(e => e.Timestamp) - g.Elements.Min(e => e.Timestamp),
                 g.Elements.First().Type,
                 g.Elements.First().Branch
-            }).ToArray();
+            }).GroupBy(b => b.Type)
+                .Select(g => new
+                {
+                    Type = g.Key,
+                    Elements = g.ToArray()
+                }).Select(g => new
+                {
+                    g.Type,
+                    MeanTime = g.Elements.Sum(e => e.Duration.TotalMinutes) / g.Elements.Length,
+                    NumberOfBuilds = g.Elements.Length,
+                    NumberOfBranches = g.Elements.Select(e => e.Branch).Distinct().Count()
+                });
 
             var rowIndex = 0;
             var row = buildTypesDetailsSheet.CreateRow(rowIndex);
@@ -128,12 +138,55 @@ namespace TeamCityMonitoring.Exporting
             {
                 rowIndex++;
                 var statusRow = buildTypesDetailsSheet.CreateRow(rowIndex);
-                statusRow.CreateCell(0).SetCellValue(status.Id);
-                statusRow.CreateCell(1).SetCellValue(status.Beginning);
-                statusRow.CreateCell(2).SetCellValue(status.Ending);
-                statusRow.CreateCell(3).SetCellValue((status.Ending - status.Beginning).TotalMinutes);
-                statusRow.CreateCell(4).SetCellValue(status.Type);
-                statusRow.CreateCell(5).SetCellValue(status.Branch);
+                statusRow.CreateCell(0).SetCellValue(status.Type);
+                statusRow.CreateCell(1).SetCellValue(status.MeanTime);
+                statusRow.CreateCell(2).SetCellValue(status.NumberOfBuilds);
+                statusRow.CreateCell(3).SetCellValue(status.NumberOfBranches);
+            }
+        }
+
+        private static void CreateBranchDetailsSheet(IWorkbook workbook, IEnumerable<QueuedBuildStatus> entries)
+        {
+            var branchesDetailsSheet = workbook.CreateSheet("Branches details");
+
+            var builds = entries.GroupBy(e => e.Id).Select(g => new
+                {
+                    Id = g.Key,
+                    Elements = g.ToArray()
+                }).Select(g => new
+                {
+                    g.Id,
+                    Duration = g.Elements.Max(e => e.Timestamp) - g.Elements.Min(e => e.Timestamp),
+                    g.Elements.First().Type,
+                    g.Elements.First().Branch
+                }).GroupBy(b => b.Branch)
+                .Select(g => new
+                {
+                    Branch = g.Key,
+                    Elements = g.ToArray()
+                }).Select(g => new
+                {
+                    g.Branch,
+                    MeanTime = g.Elements.Sum(e => e.Duration.TotalMinutes) / g.Elements.Length,
+                    NumberOfBuilds = g.Elements.Length,
+                    NumberOfBuildTypes = g.Elements.Select(e => e.Type).Distinct().Count()
+                });
+
+            var rowIndex = 0;
+            var row = branchesDetailsSheet.CreateRow(rowIndex);
+            row.CreateCell(0).SetCellValue("Branch");
+            row.CreateCell(1).SetCellValue("Mean queue duration");
+            row.CreateCell(2).SetCellValue("Number of builds");
+            row.CreateCell(3).SetCellValue("Number of build types");
+
+            foreach (var status in builds)
+            {
+                rowIndex++;
+                var statusRow = branchesDetailsSheet.CreateRow(rowIndex);
+                statusRow.CreateCell(0).SetCellValue(status.Branch);
+                statusRow.CreateCell(1).SetCellValue(status.MeanTime);
+                statusRow.CreateCell(2).SetCellValue(status.NumberOfBuilds);
+                statusRow.CreateCell(3).SetCellValue(status.NumberOfBuildTypes);
             }
         }
 
@@ -145,8 +198,6 @@ namespace TeamCityMonitoring.Exporting
             
             var rowIndex = 0;
             var row = buildQueueSizeSheet.CreateRow(rowIndex);
-            var dateTimeStyle = workbook.CreateCellStyle();
-
 
             row.CreateCell(0).SetCellValue("Timestamps");
             row.CreateCell(1).SetCellValue("Number of builds");
