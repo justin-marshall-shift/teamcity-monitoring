@@ -82,7 +82,7 @@ namespace TeamCityMonitoring.Monitoring
                             buildIds.Add(build.Id.Value);
                     }
 
-                    var buildsTask = WriteBuildsAsync(client, buildIds, buildsOutput, force: true, cancellationToken:cancellationToken);
+                    var buildsTask = WriteBuildsAsync(client, buildIds, buildsOutput, force: false, cancellationToken:cancellationToken);
 
                     await Task.WhenAll(queueTask, buildsTask, Task.Delay(delay, cancellationToken));
 
