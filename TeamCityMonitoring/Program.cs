@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using CommandLine;
 using TeamCityMonitoring.Exporting;
+using TeamCityMonitoring.Monitoring;
 using TeamCityMonitoring.Options;
 using Monitor = TeamCityMonitoring.Monitoring.Monitor;
 
@@ -13,11 +14,25 @@ namespace TeamCityMonitoring
     {
         private static void Main(string[] args)
         {
-            Parser.Default.ParseArguments<MonitorOptions, GraphOptions>(args)
+            Parser.Default.ParseArguments<MonitorOptions, GraphOptions, DeepMonitorOptions>(args)
                 .MapResult(
                     (MonitorOptions opts) => RunOptions(opts),
                     (GraphOptions opts) => RunOptions(opts),
+                    (DeepMonitorOptions opts) => RunOptions(opts),
                     HandleParseError);
+        }
+
+        private static int RunOptions(DeepMonitorOptions opts)
+        {
+            var monitor = new DeepMonitor(opts.Url, opts.Token, opts.Folder);
+
+            var cancellationTokenSource = new CancellationTokenSource();
+
+            if (opts.Duration > 0)
+                cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromHours(opts.Duration));
+
+            monitor.RunAsync(opts.Period, cancellationTokenSource.Token).Wait(cancellationTokenSource.Token);
+            return 0;
         }
 
         private static int RunOptions(GraphOptions opts)
