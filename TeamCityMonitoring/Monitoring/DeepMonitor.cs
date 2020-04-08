@@ -110,6 +110,7 @@ namespace TeamCityMonitoring.Monitoring
                     builds.Add(build);
             }
 
+            // ReSharper disable once StringLiteralTypo
             const string teamCityDateFormat = "yyyyMMddTHHmmsszzz";
             var (_, writer, csvWriter) = output;
             await csvWriter.WriteRecordsAsync(builds.Select(build =>
@@ -125,7 +126,7 @@ namespace TeamCityMonitoring.Monitoring
                     State = build.State,
                     Status = build.Status,
                     Trigger = build.Triggered?.User?.Username,
-                    TriggerTime = !string.IsNullOrEmpty(build?.Triggered?.Date) ? DateTime.ParseExact(build.Triggered.Date, teamCityDateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None).ToUniversalTime() : DateTime.MinValue,
+                    TriggerTime = !string.IsNullOrEmpty(build.Triggered?.Date) ? DateTime.ParseExact(build.Triggered.Date, teamCityDateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None).ToUniversalTime() : DateTime.MinValue,
                     TriggerType = build.Triggered?.Type
                 })
             );
