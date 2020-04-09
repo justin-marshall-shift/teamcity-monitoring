@@ -31,7 +31,19 @@ namespace TeamCityMonitoring
             if (opts.Duration > 0)
                 cancellationTokenSource = new CancellationTokenSource(TimeSpan.FromHours(opts.Duration));
 
-            monitor.RunAsync(opts.Period, cancellationTokenSource.Token).Wait(cancellationTokenSource.Token);
+            try
+            {
+                Console.WriteLine("Beginning of deep monitoring");
+                monitor.RunAsync(opts.Period, cancellationTokenSource.Token).Wait(cancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore
+            }
+            finally
+            {
+                Console.WriteLine("End of deep monitoring");
+            }
             return 0;
         }
 
@@ -48,8 +60,19 @@ namespace TeamCityMonitoring
 
             var delay = TimeSpan.FromHours(opts.Duration);
             var cancellationTokenSource = new CancellationTokenSource(delay);
-            
-            monitor.RunAsync(opts.Period, cancellationTokenSource.Token).Wait(cancellationTokenSource.Token);
+            try
+            {
+                Console.WriteLine("Beginning of monitoring");
+                monitor.RunAsync(opts.Period, cancellationTokenSource.Token).Wait(cancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore
+            }
+            finally
+            {
+                Console.WriteLine("End of monitoring");
+            }
             return 0;
         }
 

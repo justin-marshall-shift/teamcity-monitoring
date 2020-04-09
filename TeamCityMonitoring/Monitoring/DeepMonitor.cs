@@ -39,12 +39,11 @@ namespace TeamCityMonitoring.Monitoring
 
             try
             {
-                Console.WriteLine("Beginning of monitoring");
                 await LoopAsync(client, period, cancellationToken);
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("End of monitoring");
+                // Ignore
             }
         }
 
@@ -68,9 +67,10 @@ namespace TeamCityMonitoring.Monitoring
                     {
                         await FlushAndDisposeOutput(queueOutput);
                         await FlushAndDisposeOutput(buildsOutput);
-                        (queueCsvPath, buildsCsvPath) = GetPaths(currentMonitoringTime);
+                        (queueCsvPath, buildsCsvPath) = GetPaths(now);
                         queueOutput = GetAndInitializeWriter<BuildInQueue>(queueCsvPath);
                         buildsOutput = GetAndInitializeWriter<BuildDetails>(buildsCsvPath);
+                        currentMonitoringTime = now;
                     }
 
                     var queue = await client.GetBuildsAsync(null, null, cancellationToken);

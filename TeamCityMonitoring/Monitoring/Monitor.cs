@@ -11,6 +11,7 @@ using CsvHelper.Configuration;
 using TeamCityMonitoring.MonitoringMetrics;
 using TeamCityMonitoring.TeamCityService;
 using File = System.IO.File;
+// ReSharper disable MethodSupportsCancellation
 
 namespace TeamCityMonitoring.Monitoring
 {
@@ -40,7 +41,6 @@ namespace TeamCityMonitoring.Monitoring
 
         private static async Task LoopAsync(Client client, int period, string csvPath, CancellationToken cancellationToken)
         {
-            Console.WriteLine("Beginning of monitoring");
             var configuration = new CsvConfiguration(CultureInfo.InvariantCulture)
             {
                 Delimiter = ";",
@@ -69,14 +69,14 @@ namespace TeamCityMonitoring.Monitoring
             }
             catch (OperationCanceledException)
             {
-                Console.WriteLine("End of monitoring");
+                // Ignore
             }
         }
 
         private static async Task WriteRecordsAsync(Builds result, IWriter csvWriter, TextWriter writer, DateTime now)
         {
             await Task.Yield();
-            Console.WriteLine($"Number of builds {result.Count} at {now}");
+            _ = Task.Run(() => Console.WriteLine($"Number of builds {result.Count} at {now}"));
             foreach (var build in result.Build)
             {
                 csvWriter.NextRecord();
