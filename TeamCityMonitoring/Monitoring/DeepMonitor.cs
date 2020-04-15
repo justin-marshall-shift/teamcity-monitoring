@@ -67,6 +67,7 @@ namespace TeamCityMonitoring.Monitoring
                     {
                         await FlushAndDisposeOutput(queueOutput);
                         await FlushAndDisposeOutput(buildsOutput);
+                        buildIds.Clear();
                         (queueCsvPath, buildsCsvPath) = GetPaths(now);
                         queueOutput = GetAndInitializeWriter<BuildInQueue>(queueCsvPath);
                         buildsOutput = GetAndInitializeWriter<BuildDetails>(buildsCsvPath);
@@ -114,28 +115,37 @@ namespace TeamCityMonitoring.Monitoring
             const string teamCityDateFormat = "yyyyMMddTHHmmsszzz";
             var (_, writer, csvWriter) = output;
             await csvWriter.WriteRecordsAsync(builds.Select(build =>
-                new BuildDetails
                 {
-                    Id = build.Id?.ToString(),
-                    Type = build.BuildTypeId,
-                    Agent = build.Agent?.Name,
-                    Branch = build.BranchName,
-                    FinishedDate = !string.IsNullOrEmpty(build.FinishDate) ? DateTime.ParseExact(build.FinishDate, teamCityDateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None).ToUniversalTime() : DateTime.MinValue,
-                    QueueDate = !string.IsNullOrEmpty(build.QueuedDate) ? DateTime.ParseExact(build.QueuedDate, teamCityDateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None).ToUniversalTime() : DateTime.MinValue,
-                    StartDate = !string.IsNullOrEmpty(build.StartDate) ? DateTime.ParseExact(build.StartDate, teamCityDateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None).ToUniversalTime() : DateTime.MinValue,
-                    State = build.State,
-                    Status = build.Status,
-                    Trigger = build.Triggered?.User?.Username,
-                    TriggerTime = !string.IsNullOrEmpty(build.Triggered?.Date) ? DateTime.ParseExact(build.Triggered.Date, teamCityDateFormat, CultureInfo.InvariantCulture, DateTimeStyles.None).ToUniversalTime() : DateTime.MinValue,
-                    TriggerType = build.Triggered?.Type
+                    if (build.Id.HasValue) buildIds.Remove(build.Id.Value);
+                    return new BuildDetails
+                    {
+                        Id = build.Id?.ToString(),
+                        Type = build.BuildTypeId,
+                        Agent = build.Agent?.Name,
+                        Branch = build.BranchName,
+                        FinishedDate = !string.IsNullOrEmpty(build.FinishDate)
+                            ? DateTime.ParseExact(build.FinishDate, teamCityDateFormat, CultureInfo.InvariantCulture,
+                                DateTimeStyles.None).ToUniversalTime()
+                            : DateTime.MinValue,
+                        QueueDate = !string.IsNullOrEmpty(build.QueuedDate)
+                            ? DateTime.ParseExact(build.QueuedDate, teamCityDateFormat, CultureInfo.InvariantCulture,
+                                DateTimeStyles.None).ToUniversalTime()
+                            : DateTime.MinValue,
+                        StartDate = !string.IsNullOrEmpty(build.StartDate)
+                            ? DateTime.ParseExact(build.StartDate, teamCityDateFormat, CultureInfo.InvariantCulture,
+                                DateTimeStyles.None).ToUniversalTime()
+                            : DateTime.MinValue,
+                        State = build.State,
+                        Status = build.Status,
+                        Trigger = build.Triggered?.User?.Username,
+                        TriggerTime = !string.IsNullOrEmpty(build.Triggered?.Date)
+                            ? DateTime.ParseExact(build.Triggered.Date, teamCityDateFormat,
+                                CultureInfo.InvariantCulture, DateTimeStyles.None).ToUniversalTime()
+                            : DateTime.MinValue,
+                        TriggerType = build.Triggered?.Type
+                    };
                 })
             );
-
-            foreach (var build in builds)
-            {
-                if (build.Id.HasValue)
-                    buildIds.Remove(build.Id.Value);
-            }
 
             await csvWriter.FlushAsync();
             await writer.FlushAsync();
