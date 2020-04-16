@@ -55,9 +55,10 @@ namespace TeamCityMonitoring.Monitoring
 
             var buildIds = new HashSet<long>();
 
-            var (queueCsvPath, buildsCsvPath) = GetPaths(currentMonitoringTime);
+            var (queueCsvPath, buildsCsvPath, agentsCsvPath) = GetPaths(currentMonitoringTime);
             var queueOutput = GetAndInitializeWriter<BuildInQueue>(queueCsvPath);
             var buildsOutput = GetAndInitializeWriter<BuildDetails>(buildsCsvPath);
+            var agentsOutput = GetAndInitializeWriter<AllAgentsStatus>(agentsCsvPath);
 
             try
             {
@@ -67,14 +68,20 @@ namespace TeamCityMonitoring.Monitoring
                     {
                         await FlushAndDisposeOutput(queueOutput);
                         await FlushAndDisposeOutput(buildsOutput);
+                        await FlushAndDisposeOutput(agentsOutput);
                         buildIds.Clear();
-                        (queueCsvPath, buildsCsvPath) = GetPaths(now);
+                        (queueCsvPath, buildsCsvPath, agentsCsvPath) = GetPaths(now);
                         queueOutput = GetAndInitializeWriter<BuildInQueue>(queueCsvPath);
                         buildsOutput = GetAndInitializeWriter<BuildDetails>(buildsCsvPath);
+                        agentsOutput = GetAndInitializeWriter<AllAgentsStatus>(agentsCsvPath);
                         currentMonitoringTime = now;
                     }
 
                     var queue = await client.GetBuildsAsync(null, null, cancellationToken);
+
+                    var agents = await client.ServeAgentsAsync(null, null, null, "count,agent(id,name,enabled,authorized,build)");
+                    var agentsTask = WriteAgentsAsync(agents, agentsOutput, now);
+
                     var queueTask = WriteQueueAsync(queue, queueOutput, now);
 
                     foreach (var build in queue.Build)
@@ -95,6 +102,7 @@ namespace TeamCityMonitoring.Monitoring
                 await WriteBuildsAsync(client, buildIds, buildsOutput, force: true, cancellationToken: cancellationToken);
                 await FlushAndDisposeOutput(queueOutput);
                 await FlushAndDisposeOutput(buildsOutput);
+                await FlushAndDisposeOutput(agentsOutput);
             }
         }
 
@@ -185,11 +193,12 @@ namespace TeamCityMonitoring.Monitoring
             return (stream, writer, csvWriter);
         }
 
-        private (string queueCsvPath, string buildsCsvPath) GetPaths(DateTime time)
+        private (string queueCsvPath, string buildsCsvPath, string agentsCsvPath) GetPaths(DateTime time)
         {
             var queueCsvPath = Path.Combine(_folder, $"queue_{time:yyyyMMdd}.csv");
             var buildsCsvPath = Path.Combine(_folder, $"builds_{time:yyyyMMdd}.csv");
-            return (queueCsvPath, buildsCsvPath);
+            var agentsCsvPath = Path.Combine(_folder, $"agents_{time:yyyyMMdd}.csv");
+            return (queueCsvPath, buildsCsvPath, agentsCsvPath);
         }
 
         private static async Task WriteQueueAsync(Builds result, (Stream stream, TextWriter writer, CsvWriter csvWriter) output, DateTime now)
@@ -207,6 +216,27 @@ namespace TeamCityMonitoring.Monitoring
                     Id = build.Id?.ToString()
                 })
             );
+            await csvWriter.FlushAsync();
+            await writer.FlushAsync();
+        }
+
+        private static async Task WriteAgentsAsync(Agents result, (Stream stream, TextWriter writer, CsvWriter csvWriter) output, DateTime now)
+        {
+            await Task.Yield();
+
+            var agents = result.Agent.ToArray();
+
+            var (_, writer, csvWriter) = output;
+            var idleAgents = agents.Where(a => a.Build == null).Select(a => a.Name).ToArray();
+
+            csvWriter.WriteRecord(new AllAgentsStatus {
+                Disabled = agents.Where(a => a.Enabled == false).Count(),
+                Total = result.Count ?? 0,
+                Idle = (double)idleAgents.Length * 100 / (result.Count ?? 0),
+                Timestamp = now,
+                Unauthorized = agents.Where(a => a.Authorized == false).Count(),
+                IdleAgents = string.Join(",", idleAgents)
+            });
             await csvWriter.FlushAsync();
             await writer.FlushAsync();
         }

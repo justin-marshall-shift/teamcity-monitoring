@@ -25,6 +25,22 @@ namespace TeamCityMonitoring.MonitoringMetrics
         public string Id { get; set; }
     }
 
+    public class AllAgentsStatus
+    {
+        [Name("Timestamp UTC")]
+        public DateTime Timestamp { get; set; }
+        [Name("Number of disabled")]
+        public int Disabled { get; set; }
+        [Name("Number of unauthorized")]
+        public int Unauthorized { get; set; }
+        [Name("Total")]
+        public int Total { get; set; }
+        [Name("Idle percentage")]
+        public double Idle { get; set; }
+        [Name("List of idle agents")]
+        public string IdleAgents { get; set; }
+    }
+
     public class BuildDetails
     {
         [Name("Build Id")]
