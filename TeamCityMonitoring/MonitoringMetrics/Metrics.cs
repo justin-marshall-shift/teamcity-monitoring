@@ -8,7 +8,7 @@ namespace TeamCityMonitoring.MonitoringMetrics
         [Name("Number of builds")]
         public int NumberOfBuilds { get; set; }
         [Name("Timestamp UTC")]
-        public DateTime Timestamp { get; set; }
+        public string Timestamp { get; set; }
         [Name("Build Id")]
         public string Id { get; set; }
         [Name("Build Type Id")]
@@ -20,7 +20,7 @@ namespace TeamCityMonitoring.MonitoringMetrics
     public class BuildInQueue
     {
         [Name("Timestamp UTC")]
-        public DateTime Timestamp { get; set; }
+        public string Timestamp { get; set; }
         [Name("Build Id")]
         public string Id { get; set; }
     }
@@ -28,7 +28,7 @@ namespace TeamCityMonitoring.MonitoringMetrics
     public class AllAgentsStatus
     {
         [Name("Timestamp UTC")]
-        public DateTime Timestamp { get; set; }
+        public string Timestamp { get; set; }
         [Name("Number of disabled")]
         public int Disabled { get; set; }
         [Name("Number of unauthorized")]
@@ -54,11 +54,11 @@ namespace TeamCityMonitoring.MonitoringMetrics
         [Name("State")]
         public string State { get; set; }
         [Name("Queued time")]
-        public DateTime QueueDate { get; set; }
+        public string QueueDate { get; set; }
         [Name("Start time")]
-        public DateTime StartDate { get; set; }
+        public string StartDate { get; set; }
         [Name("Finished time")]
-        public DateTime FinishedDate { get; set; }
+        public string FinishedDate { get; set; }
         [Name("Agent")]
         public string Agent { get; set; }
         [Name("Trigger")]
@@ -66,6 +66,6 @@ namespace TeamCityMonitoring.MonitoringMetrics
         [Name("Trigger type")]
         public string TriggerType { get; set; }
         [Name("Trigger time")]
-        public DateTime TriggerTime { get; set; }
+        public string TriggerTime { get; set; }
     }
 }

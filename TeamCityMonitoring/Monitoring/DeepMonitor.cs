@@ -54,6 +54,7 @@ namespace TeamCityMonitoring.Monitoring
             var currentMonitoringTime = now;
 
             var buildIds = new HashSet<long>();
+            var buildDumpIds = new HashSet<long>();
 
             var (queueCsvPath, buildsCsvPath, agentsCsvPath) = GetPaths(currentMonitoringTime);
             var queueOutput = GetAndInitializeWriter<BuildInQueue>(queueCsvPath);
@@ -70,6 +71,7 @@ namespace TeamCityMonitoring.Monitoring
                         await FlushAndDisposeOutput(buildsOutput);
                         await FlushAndDisposeOutput(agentsOutput);
                         buildIds.Clear();
+                        buildDumpIds.Clear();
                         (queueCsvPath, buildsCsvPath, agentsCsvPath) = GetPaths(now);
                         queueOutput = GetAndInitializeWriter<BuildInQueue>(queueCsvPath);
                         buildsOutput = GetAndInitializeWriter<BuildDetails>(buildsCsvPath);
@@ -86,11 +88,11 @@ namespace TeamCityMonitoring.Monitoring
 
                     foreach (var build in queue.Build)
                     {
-                        if (build.Id.HasValue)
+                        if (build.Id.HasValue && !buildDumpIds.Contains(build.Id.Value))
                             buildIds.Add(build.Id.Value);
                     }
 
-                    var buildsTask = WriteBuildsAsync(client, buildIds, buildsOutput, force: false, cancellationToken:cancellationToken);
+                    var buildsTask = WriteBuildsAsync(client, buildIds, buildDumpIds, buildsOutput, force: false, cancellationToken:cancellationToken);
 
                     await Task.WhenAll(queueTask, buildsTask, Task.Delay(delay, cancellationToken));
 
@@ -99,14 +101,14 @@ namespace TeamCityMonitoring.Monitoring
             }
             finally
             {
-                await WriteBuildsAsync(client, buildIds, buildsOutput, force: true, cancellationToken: cancellationToken);
+                await WriteBuildsAsync(client, buildIds, buildDumpIds, buildsOutput, force: true, cancellationToken: cancellationToken);
                 await FlushAndDisposeOutput(queueOutput);
                 await FlushAndDisposeOutput(buildsOutput);
                 await FlushAndDisposeOutput(agentsOutput);
             }
         }
 
-        private static async Task WriteBuildsAsync(Client client, HashSet<long> buildIds,
+        private static async Task WriteBuildsAsync(Client client, HashSet<long> buildIds, HashSet<long> buildDumpIds,
             (Stream stream, TextWriter writer, CsvWriter csvWriter) output, bool force, CancellationToken cancellationToken)
         {
             var builds = new List<Build>();
@@ -115,7 +117,7 @@ namespace TeamCityMonitoring.Monitoring
             {
                 var build = await client.ServeBuildAsync($"id:{buildId}", null, cancellationToken);
 
-                if(force || !string.IsNullOrEmpty(build.FinishDate))
+                if((force || !string.IsNullOrEmpty(build.FinishDate)) && !buildDumpIds.Contains(buildId))
                     builds.Add(build);
             }
 
@@ -124,7 +126,7 @@ namespace TeamCityMonitoring.Monitoring
             var (_, writer, csvWriter) = output;
             await csvWriter.WriteRecordsAsync(builds.Select(build =>
                 {
-                    if (build.Id.HasValue) buildIds.Remove(build.Id.Value);
+                    buildDumpIds.Add(build.Id.Value);
                     return new BuildDetails
                     {
                         Id = build.Id?.ToString(),
@@ -133,23 +135,23 @@ namespace TeamCityMonitoring.Monitoring
                         Branch = build.BranchName,
                         FinishedDate = !string.IsNullOrEmpty(build.FinishDate)
                             ? DateTime.ParseExact(build.FinishDate, teamCityDateFormat, CultureInfo.InvariantCulture,
-                                DateTimeStyles.None).ToUniversalTime()
-                            : DateTime.MinValue,
+                                DateTimeStyles.None).ToUniversalTime().ToString("o")
+                            : DateTime.MinValue.ToString("o"),
                         QueueDate = !string.IsNullOrEmpty(build.QueuedDate)
                             ? DateTime.ParseExact(build.QueuedDate, teamCityDateFormat, CultureInfo.InvariantCulture,
-                                DateTimeStyles.None).ToUniversalTime()
-                            : DateTime.MinValue,
+                                DateTimeStyles.None).ToUniversalTime().ToString("o")
+                            : DateTime.MinValue.ToString("o"),
                         StartDate = !string.IsNullOrEmpty(build.StartDate)
                             ? DateTime.ParseExact(build.StartDate, teamCityDateFormat, CultureInfo.InvariantCulture,
-                                DateTimeStyles.None).ToUniversalTime()
-                            : DateTime.MinValue,
+                                DateTimeStyles.None).ToUniversalTime().ToString("o")
+                            : DateTime.MinValue.ToString("o"),
                         State = build.State,
                         Status = build.Status,
                         Trigger = build.Triggered?.User?.Username,
                         TriggerTime = !string.IsNullOrEmpty(build.Triggered?.Date)
                             ? DateTime.ParseExact(build.Triggered.Date, teamCityDateFormat,
-                                CultureInfo.InvariantCulture, DateTimeStyles.None).ToUniversalTime()
-                            : DateTime.MinValue,
+                                CultureInfo.InvariantCulture, DateTimeStyles.None).ToUniversalTime().ToString("o")
+                            : DateTime.MinValue.ToString("o"),
                         TriggerType = build.Triggered?.Type
                     };
                 })
@@ -212,7 +214,7 @@ namespace TeamCityMonitoring.Monitoring
             await csvWriter.WriteRecordsAsync(builds.Select(build =>
                 new BuildInQueue
                 {
-                    Timestamp = now,
+                    Timestamp = now.ToString("o"),
                     Id = build.Id?.ToString()
                 })
             );
@@ -233,10 +235,11 @@ namespace TeamCityMonitoring.Monitoring
                 Disabled = agents.Where(a => a.Enabled == false).Count(),
                 Total = result.Count ?? 0,
                 Idle = (double)idleAgents.Length * 100 / (result.Count ?? 0),
-                Timestamp = now,
+                Timestamp = now.ToString("o"),
                 Unauthorized = agents.Where(a => a.Authorized == false).Count(),
                 IdleAgents = string.Join(",", idleAgents)
             });
+            csvWriter.NextRecord();
             await csvWriter.FlushAsync();
             await writer.FlushAsync();
         }

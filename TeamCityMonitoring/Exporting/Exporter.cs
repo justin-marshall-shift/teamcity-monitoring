@@ -94,7 +94,7 @@ namespace TeamCityMonitoring.Exporting
                 statusRow.CreateCell(0).SetCellValue(status.Id);
                 statusRow.CreateCell(1).SetCellValue(status.Beginning);
                 statusRow.CreateCell(2).SetCellValue(status.Ending);
-                statusRow.CreateCell(3).SetCellValue((status.Ending - status.Beginning).TotalMinutes);
+                statusRow.CreateCell(3).SetCellValue((DateTime.Parse(status.Ending) - DateTime.Parse(status.Beginning)).TotalMinutes);
                 statusRow.CreateCell(4).SetCellValue(status.Type);
                 statusRow.CreateCell(5).SetCellValue(status.Branch);
             }
@@ -111,7 +111,7 @@ namespace TeamCityMonitoring.Exporting
             }).Select(g => new
             {
                 g.Id,
-                Duration = g.Elements.Max(e => e.Timestamp) - g.Elements.Min(e => e.Timestamp),
+                Duration = g.Elements.Max(e => DateTime.Parse(e.Timestamp)) - g.Elements.Min(e => DateTime.Parse(e.Timestamp)),
                 g.Elements.First().Type,
                 g.Elements.First().Branch
             }).GroupBy(b => b.Type)
@@ -156,7 +156,7 @@ namespace TeamCityMonitoring.Exporting
                 }).Select(g => new
                 {
                     g.Id,
-                    Duration = g.Elements.Max(e => e.Timestamp) - g.Elements.Min(e => e.Timestamp),
+                    Duration = g.Elements.Max(e => DateTime.Parse(e.Timestamp)) - g.Elements.Min(e => DateTime.Parse(e.Timestamp)),
                     g.Elements.First().Type,
                     g.Elements.First().Branch
                 }).GroupBy(b => b.Branch)

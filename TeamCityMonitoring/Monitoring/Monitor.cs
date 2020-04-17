@@ -80,7 +80,7 @@ namespace TeamCityMonitoring.Monitoring
             foreach (var build in result.Build)
             {
                 csvWriter.NextRecord();
-                csvWriter.WriteRecord(new QueuedBuildStatus { NumberOfBuilds = result.Count ?? 0, Timestamp = now, Id = build.Id?.ToString(), Branch = build.BranchName, Type = build.BuildTypeId });
+                csvWriter.WriteRecord(new QueuedBuildStatus { NumberOfBuilds = result.Count ?? 0, Timestamp = now.ToString("o"), Id = build.Id?.ToString(), Branch = build.BranchName, Type = build.BuildTypeId });
             }
             await csvWriter.FlushAsync();
             await writer.FlushAsync();
