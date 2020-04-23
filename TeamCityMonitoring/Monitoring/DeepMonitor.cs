@@ -80,18 +80,11 @@ namespace TeamCityMonitoring.Monitoring
                     }
                                         
                     var agents = await client.ServeAgentsAsync(null, null, null, "count,agent(id,name,enabled,authorized,build)");
-                    foreach (var build in agents.Agent.Where(a => a.Build != null).Select(a => a.Build))
-                    {
-                        if (build.Id.HasValue && !buildDumpIds.Contains(build.Id.Value))
-                            buildIds.Add(build.Id.Value);
-                    }
-                    
                     var queue = await client.GetBuildsAsync(null, null, cancellationToken);
-                    foreach (var build in queue.Build)
-                    {
-                        if (build.Id.HasValue && !buildDumpIds.Contains(build.Id.Value))
-                            buildIds.Add(build.Id.Value);
-                    }
+
+                    RetrieveBuildsToMonitor(buildIds, buildDumpIds,
+                        agents.Agent.Where(a => a.Build != null).Select(a => a.Build),
+                        queue.Build);
 
                     var agentsTask = WriteAgentsAsync(agents, agentsOutput, now);
                     var queueTask = WriteQueueAsync(queue, queueOutput, now);
@@ -108,6 +101,15 @@ namespace TeamCityMonitoring.Monitoring
                 await FlushAndDisposeOutput(queueOutput);
                 await FlushAndDisposeOutput(buildsOutput);
                 await FlushAndDisposeOutput(agentsOutput);
+            }
+        }
+
+        private static void RetrieveBuildsToMonitor(HashSet<long> buildIds, HashSet<long> buildDumpIds, params IEnumerable<Build>[] builds)
+        {
+            foreach (var build in builds.SelectMany(b => b))
+            {
+                if (build.Id.HasValue && !buildDumpIds.Contains(build.Id.Value))
+                    buildIds.Add(build.Id.Value);
             }
         }
 
