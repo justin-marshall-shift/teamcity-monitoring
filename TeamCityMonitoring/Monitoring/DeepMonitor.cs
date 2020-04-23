@@ -78,23 +78,26 @@ namespace TeamCityMonitoring.Monitoring
                         agentsOutput = GetAndInitializeWriter<AllAgentsStatus>(agentsCsvPath);
                         currentMonitoringTime = now;
                     }
-
-                    var queue = await client.GetBuildsAsync(null, null, cancellationToken);
-
+                                        
                     var agents = await client.ServeAgentsAsync(null, null, null, "count,agent(id,name,enabled,authorized,build)");
-                    var agentsTask = WriteAgentsAsync(agents, agentsOutput, now, buildIds, buildDumpIds);
-
-                    var queueTask = WriteQueueAsync(queue, queueOutput, now);
-
+                    foreach (var build in agents.Agent.Where(a => a.Build != null).Select(a => a.Build))
+                    {
+                        if (build.Id.HasValue && !buildDumpIds.Contains(build.Id.Value))
+                            buildIds.Add(build.Id.Value);
+                    }
+                    
+                    var queue = await client.GetBuildsAsync(null, null, cancellationToken);
                     foreach (var build in queue.Build)
                     {
                         if (build.Id.HasValue && !buildDumpIds.Contains(build.Id.Value))
                             buildIds.Add(build.Id.Value);
                     }
 
+                    var agentsTask = WriteAgentsAsync(agents, agentsOutput, now);
+                    var queueTask = WriteQueueAsync(queue, queueOutput, now);
                     var buildsTask = WriteBuildsAsync(client, buildIds, buildDumpIds, buildsOutput, force: false, cancellationToken:cancellationToken);
 
-                    await Task.WhenAll(queueTask, buildsTask, Task.Delay(delay, cancellationToken));
+                    await Task.WhenAll(queueTask, buildsTask, agentsTask, Task.Delay(delay, cancellationToken));
 
                     now = DateTime.UtcNow;
                 }
@@ -222,7 +225,7 @@ namespace TeamCityMonitoring.Monitoring
             await writer.FlushAsync();
         }
 
-        private static async Task WriteAgentsAsync(Agents result, (Stream stream, TextWriter writer, CsvWriter csvWriter) output, DateTime now, HashSet<long> buildIds, HashSet<long> buildDumpIds)
+        private static async Task WriteAgentsAsync(Agents result, (Stream stream, TextWriter writer, CsvWriter csvWriter) output, DateTime now)
         {
             await Task.Yield();
 
@@ -230,12 +233,6 @@ namespace TeamCityMonitoring.Monitoring
 
             var (_, writer, csvWriter) = output;
             var idleAgents = agents.Where(a => a.Build == null).Select(a => a.Name).ToArray();
-
-            foreach(var build in agents.Where(a => a.Build != null).Select(a => a.Build))
-            {
-                if (build.Id.HasValue && !buildDumpIds.Contains(build.Id.Value))
-                    buildIds.Add(build.Id.Value);
-            }
 
             csvWriter.WriteRecord(new AllAgentsStatus {
                 Disabled = agents.Where(a => a.Enabled == false).Count(),
