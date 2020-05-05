@@ -24,7 +24,7 @@ namespace TeamCityMonitoring
 
         private static int RunOptions(DeepMonitorOptions opts)
         {
-            var monitor = new DeepMonitor(opts.Url, opts.Token, opts.Folder);
+            var monitor = new DeepMonitor(opts.Url, opts.Token, opts.Folder, opts.GitHubToken);
 
             var cancellationTokenSource = new CancellationTokenSource();
 

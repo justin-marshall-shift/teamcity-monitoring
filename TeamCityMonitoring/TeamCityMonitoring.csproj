@@ -9,6 +9,7 @@
     <PackageReference Include="CommandLineParser" Version="2.7.82" />
     <PackageReference Include="CsvHelper" Version="15.0.4" />
     <PackageReference Include="DotNetCore.NPOI" Version="1.2.2" />
+    <PackageReference Include="JsonFx" Version="2.0.1209.2802" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
   </ItemGroup>
 

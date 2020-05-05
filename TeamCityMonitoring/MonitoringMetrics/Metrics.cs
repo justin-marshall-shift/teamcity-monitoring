@@ -41,6 +41,28 @@ namespace TeamCityMonitoring.MonitoringMetrics
         public string IdleAgents { get; set; }
     }
 
+    public class BranchStatus
+    {
+        [Name("Branch")]
+        public string Branch { get; set; }
+        [Name("State")]
+        public string State { get; set; }
+        [Name("StatusDate")]
+        public DateTime StatusDate { get; set; }
+        [Name("CreatedDate")]
+        public DateTime CreatedDate { get; set; }
+        [Name("ClosedDate")]
+        public DateTime ClosedDate { get; set; }
+        [Name("MergedDate")]
+        public DateTime MergedDate { get; set; }
+        [Name("Url")]
+        public string Url { get; set; }
+        [Name("Title")]
+        public string Title { get; set; }
+        [Name("WIP")]
+        public bool IsWip { get; set; }
+    }
+
     public class BuildDetails
     {
         [Name("Build Id")]

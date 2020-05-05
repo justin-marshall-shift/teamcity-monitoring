@@ -38,6 +38,24 @@ namespace TeamCityMonitoring.Options
 
         [Option('p', "period", Required = true, HelpText = "Define the time between two samplings in minutes.")]
         public int Period { get; set; }
+
+        [Option('g', "githubaccesstoken", Required = true, HelpText = "Github access token.")]
+        public string GitHubToken { get; set; }
+    }
+
+
+
+    [Verb("github", HelpText = "Retrieve states of pull request")]
+    public class GithubOptions
+    {
+        [Option('t', "token", Required = true, HelpText = "Github REST API token.")]
+        public string Token { get; set; }
+
+        [Option('b', "builds", Required = true, HelpText = "Path to the folder that contains the builds csv files.")]
+        public string Builds { get; set; }
+
+        [Option('f', "folder", Required = true, HelpText = "Path to the folder where statistics will be dumped.")]
+        public string Folder { get; set; }
     }
 
     [Verb("graph", HelpText = "Create metrics graphs from your monitoring file.")]
