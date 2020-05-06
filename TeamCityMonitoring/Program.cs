@@ -14,12 +14,34 @@ namespace TeamCityMonitoring
     {
         private static void Main(string[] args)
         {
-            Parser.Default.ParseArguments<MonitorOptions, GraphOptions, DeepMonitorOptions>(args)
+            Parser.Default.ParseArguments<MonitorOptions, GraphOptions, DeepMonitorOptions, GithubOptions>(args)
                 .MapResult(
                     (MonitorOptions opts) => RunOptions(opts),
                     (GraphOptions opts) => RunOptions(opts),
                     (DeepMonitorOptions opts) => RunOptions(opts),
+                    (GithubOptions opts) => RunOptions(opts),
                     HandleParseError);
+        }
+
+        private static int RunOptions(GithubOptions opts)
+        {
+            var monitor = new PullRequestMonitor(opts.Token, opts.Folder);
+            var cancellationTokenSource = new CancellationTokenSource();
+
+            try
+            {
+                Console.WriteLine("Beginning of retrieval of PR status");
+                monitor.RunAsync(opts.Builds).Wait(cancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                // Ignore
+            }
+            finally
+            {
+                Console.WriteLine("End of deep monitoring");
+            }
+            return 0;
         }
 
         private static int RunOptions(DeepMonitorOptions opts)

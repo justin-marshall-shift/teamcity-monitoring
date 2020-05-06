@@ -48,13 +48,13 @@ namespace TeamCityMonitoring.MonitoringMetrics
         [Name("State")]
         public string State { get; set; }
         [Name("StatusDate")]
-        public DateTime StatusDate { get; set; }
+        public string StatusDate { get; set; }
         [Name("CreatedDate")]
-        public DateTime CreatedDate { get; set; }
+        public string CreatedDate { get; set; }
         [Name("ClosedDate")]
-        public DateTime ClosedDate { get; set; }
+        public string ClosedDate { get; set; }
         [Name("MergedDate")]
-        public DateTime MergedDate { get; set; }
+        public string MergedDate { get; set; }
         [Name("Url")]
         public string Url { get; set; }
         [Name("Title")]

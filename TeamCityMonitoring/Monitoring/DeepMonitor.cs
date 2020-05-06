@@ -61,10 +61,10 @@ namespace TeamCityMonitoring.Monitoring
             var branchesToCheck = new HashSet<string>();
 
             var (queueCsvPath, buildsCsvPath, agentsCsvPath, branchsCsvPath) = GetPaths(currentMonitoringTime);
-            var queueOutput = GetAndInitializeWriter<BuildInQueue>(queueCsvPath);
-            var buildsOutput = GetAndInitializeWriter<BuildDetails>(buildsCsvPath); 
-            var agentsOutput = GetAndInitializeWriter<AllAgentsStatus>(agentsCsvPath);
-            var branchOutput = GetAndInitializeWriter<BranchStatus>(branchsCsvPath);
+            var queueOutput = CommonHelper.GetAndInitializeWriter<BuildInQueue>(queueCsvPath);
+            var buildsOutput = CommonHelper.GetAndInitializeWriter<BuildDetails>(buildsCsvPath); 
+            var agentsOutput = CommonHelper.GetAndInitializeWriter<AllAgentsStatus>(agentsCsvPath);
+            var branchOutput = CommonHelper.GetAndInitializeWriter<BranchStatus>(branchsCsvPath);
 
             try
             {
@@ -72,20 +72,20 @@ namespace TeamCityMonitoring.Monitoring
                 {
                     if (now.Date != currentMonitoringTime.Date)
                     {
-                        await RetrieveBranchesStatus(branchOutput, branchesToCheck, now);
+                        await CommonHelper.RetrieveBranchesStatus(branchOutput, branchesToCheck, now, _githubtoken);
 
-                        await FlushAndDisposeOutput(queueOutput);
-                        await FlushAndDisposeOutput(buildsOutput);
-                        await FlushAndDisposeOutput(agentsOutput);
-                        await FlushAndDisposeOutput(branchOutput);
+                        await CommonHelper.FlushAndDisposeOutput(queueOutput);
+                        await CommonHelper.FlushAndDisposeOutput(buildsOutput);
+                        await CommonHelper.FlushAndDisposeOutput(agentsOutput);
+                        await CommonHelper.FlushAndDisposeOutput(branchOutput);
                         buildIds.Clear();
                         buildDumpIds.Clear();
                         branchesToCheck.Clear();
                         (queueCsvPath, buildsCsvPath, agentsCsvPath, branchsCsvPath) = GetPaths(now);
-                        queueOutput = GetAndInitializeWriter<BuildInQueue>(queueCsvPath);
-                        buildsOutput = GetAndInitializeWriter<BuildDetails>(buildsCsvPath);
-                        agentsOutput = GetAndInitializeWriter<AllAgentsStatus>(agentsCsvPath);
-                        branchOutput = GetAndInitializeWriter<BranchStatus>(branchsCsvPath);
+                        queueOutput = CommonHelper.GetAndInitializeWriter<BuildInQueue>(queueCsvPath);
+                        buildsOutput = CommonHelper.GetAndInitializeWriter<BuildDetails>(buildsCsvPath);
+                        agentsOutput = CommonHelper.GetAndInitializeWriter<AllAgentsStatus>(agentsCsvPath);
+                        branchOutput = CommonHelper.GetAndInitializeWriter<BranchStatus>(branchsCsvPath);
                         currentMonitoringTime = now;
                     }
                                         
@@ -108,63 +108,12 @@ namespace TeamCityMonitoring.Monitoring
             finally
             {
                 await WriteBuildsAsync(client, buildIds, buildDumpIds, buildsOutput, branchesToCheck, force: true, cancellationToken: cancellationToken);
-                await FlushAndDisposeOutput(queueOutput);
-                await FlushAndDisposeOutput(buildsOutput);
-                await FlushAndDisposeOutput(agentsOutput);
-                await RetrieveBranchesStatus(branchOutput, branchesToCheck, now);
-                await FlushAndDisposeOutput(branchOutput);
+                await CommonHelper.FlushAndDisposeOutput(queueOutput);
+                await CommonHelper.FlushAndDisposeOutput(buildsOutput);
+                await CommonHelper.FlushAndDisposeOutput(agentsOutput);
+                await CommonHelper.RetrieveBranchesStatus(branchOutput, branchesToCheck, now, _githubtoken);
+                await CommonHelper.FlushAndDisposeOutput(branchOutput);
             }
-        }
-
-        private async Task RetrieveBranchesStatus((Stream stream, TextWriter writer, CsvWriter csvWriter) output, HashSet<string> branchesToCheck, DateTime now)
-        {
-            var githubclient = new Github.GithubApi("Shift-TeamCity-Monitoring", "1.0", _githubtoken);
-            var (_, writer, csvWriter) = output;
-
-            foreach (var branch in branchesToCheck)
-            {
-                var id = GetBranchId(branch);
-                if (!id.HasValue)
-                    continue;
-
-                var pullrequest = await githubclient.GetPullRequestAsync(id.Value);
-
-                if (pullrequest == null)
-                    continue;
-
-                csvWriter.WriteRecord(new BranchStatus
-                {
-                    Branch = branch,
-                    ClosedDate = string.IsNullOrEmpty(pullrequest.closed_at) ? DateTime.MinValue : DateTime.Parse(pullrequest.closed_at),
-                    CreatedDate = string.IsNullOrEmpty(pullrequest.created_at) ? DateTime.MinValue : DateTime.Parse(pullrequest.created_at),
-                    MergedDate = string.IsNullOrEmpty(pullrequest.merged_at) ? DateTime.MinValue : DateTime.Parse(pullrequest.merged_at),
-                    IsWip = pullrequest.title?.Contains("[WIP]") == true,
-                    State = pullrequest.state,
-                    StatusDate = now.Date,
-                    Title = pullrequest.title,                    
-                    Url = pullrequest.url
-                });
-
-                csvWriter.NextRecord();
-                await csvWriter.FlushAsync();
-                await writer.FlushAsync();
-            }
-        }
-
-        private int? GetBranchId(string origin)
-        {
-            var branch = origin;
-
-            if (string.IsNullOrEmpty(branch))
-                return null;
-
-            if (!branch.StartsWith("refs/pull/") || !branch.EndsWith("/head"))
-                return null;
-
-            branch = branch.Substring("refs/pull/".Length, branch.Length - "refs/pull/".Length);
-            branch = branch.Substring(0, branch.Length - "/head".Length);
-
-            return int.Parse(branch);
         }
 
         private static void RetrieveBuildsToMonitor(HashSet<long> buildIds, HashSet<long> buildDumpIds, params IEnumerable<Build>[] builds)
@@ -228,40 +177,6 @@ namespace TeamCityMonitoring.Monitoring
 
             await csvWriter.FlushAsync();
             await writer.FlushAsync();
-        }
-
-        private static async Task FlushAndDisposeOutput((Stream stream, TextWriter writer, CsvWriter csvWriter) output)
-        {
-            var (stream, writer, csvWriter) = output;
-            if (stream == null || writer == null || csvWriter == null)
-                return;
-
-            await csvWriter.FlushAsync();
-            await writer.FlushAsync();
-
-            csvWriter.Dispose();
-            writer.Dispose();
-            stream.Dispose();
-        }
-
-        private static (Stream stream, TextWriter writer, CsvWriter csvWriter) GetAndInitializeWriter<T>(string queueCsvPath)
-        {
-            var configuration = new CsvConfiguration(CultureInfo.InvariantCulture)
-            {
-                Delimiter = ";",
-                ShouldQuote = (s, context) => true,
-                IgnoreBlankLines = true,
-                NewLine = NewLine.CRLF
-            };
-
-            var stream = File.OpenWrite(queueCsvPath);
-            var writer = new StreamWriter(stream, Encoding.UTF8);
-            var csvWriter = new CsvWriter(writer, configuration);
-
-            csvWriter.WriteHeader<T>();
-            csvWriter.NextRecord();
-
-            return (stream, writer, csvWriter);
         }
 
         private (string queueCsvPath, string buildsCsvPath, string agentsCsvPath, string branchsCsvPath) GetPaths(DateTime time)
